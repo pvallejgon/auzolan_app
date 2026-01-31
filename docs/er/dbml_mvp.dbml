@@ -1,0 +1,169 @@
+﻿Enum membership_status {
+  pending
+  approved
+  rejected
+  expelled
+}
+
+Enum community_role {
+  member
+  moderator
+}
+
+Enum request_status {
+  open
+  in_progress
+  resolved
+  cancelled
+}
+
+Enum volunteer_offer_status {
+  offered
+  accepted
+  rejected
+  withdrawn
+}
+
+Enum report_status {
+  open
+  in_review
+  closed
+}
+
+Enum report_reason {
+  payments
+  advertising
+  prohibited_content
+  harassment
+  other
+}
+
+Table users {
+  id int [pk, increment]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [not null]
+  is_active boolean [not null, default: true]
+  is_staff boolean [not null, default: false]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table profiles {
+  id int [pk, increment]
+  user_id int [not null, unique]
+  display_name varchar(80) [not null]
+  bio varchar(280)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table communities {
+  id int [pk, increment]
+  name varchar(120) [not null]
+  description varchar(500)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table memberships {
+  id int [pk, increment]
+  user_id int [not null]
+  community_id int [not null]
+  status membership_status [not null, default: 'approved']
+  role_in_community community_role [not null, default: 'member']
+  joined_at timestamp
+  updated_at timestamp [not null]
+
+  indexes {
+    (user_id, community_id) [unique]
+    (community_id, status)
+  }
+}
+
+Table requests {
+  id int [pk, increment]
+  community_id int [not null]
+  created_by_user_id int [not null]
+  title varchar(120) [not null]
+  description text [not null]
+  category varchar(60) [not null]
+  time_window_text varchar(120)
+  location_area_text varchar(120)
+  location_radius_km int
+  status request_status [not null, default: 'open']
+  accepted_offer_id int
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  closed_at timestamp
+
+  indexes {
+    (community_id, status)
+    (community_id, category)
+    (created_by_user_id)
+  }
+}
+
+Table volunteer_offers {
+  id int [pk, increment]
+  request_id int [not null]
+  volunteer_user_id int [not null]
+  message varchar(280)
+  status volunteer_offer_status [not null, default: 'offered']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (request_id, volunteer_user_id) [unique]
+    (request_id, status)
+  }
+}
+
+Table conversations {
+  id int [pk, increment]
+  request_id int [not null, unique]
+  created_at timestamp [not null]
+}
+
+Table messages {
+  id int [pk, increment]
+  conversation_id int [not null]
+  sender_user_id int [not null]
+  body text [not null]
+  created_at timestamp [not null]
+
+  indexes {
+    (conversation_id, created_at)
+  }
+}
+
+Table reports {
+  id int [pk, increment]
+  reporter_user_id int [not null]
+  request_id int [not null]
+  reason report_reason [not null]
+  description varchar(500)
+  status report_status [not null, default: 'open']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+// Relaciones
+Ref: profiles.user_id > users.id [delete: cascade]
+
+Ref: memberships.user_id > users.id [delete: cascade]
+Ref: memberships.community_id > communities.id [delete: cascade]
+
+Ref: requests.community_id > communities.id [delete: cascade]
+Ref: requests.created_by_user_id > users.id [delete: restrict]
+Ref: requests.accepted_offer_id > volunteer_offers.id [delete: set null]
+
+Ref: volunteer_offers.request_id > requests.id [delete: cascade]
+Ref: volunteer_offers.volunteer_user_id > users.id [delete: cascade]
+
+Ref: conversations.request_id > requests.id [delete: cascade]
+
+Ref: messages.conversation_id > conversations.id [delete: cascade]
+Ref: messages.sender_user_id > users.id [delete: restrict]
+
+Ref: reports.reporter_user_id > users.id [delete: restrict]
+Ref: reports.request_id > requests.id [delete: cascade]

@@ -1,0 +1,93 @@
+# ----------------------------
+# Generic repo ignores for AuzolanApp (Django + React/Vite + Docker)
+# ----------------------------
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Secrets / env files
+.env
+.env.*
+*.env
+!*.env.example
+
+# ----------------------------
+# Python / Django
+# ----------------------------
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+ENV/
+env/
+
+# Django
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+static/  # si tu collectstatic escribe aqui, si no, borralo
+local_settings.py
+settings_local.py
+settings.dev.py
+settings.prod.py
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ----------------------------
+# Node / React / Vite
+# ----------------------------
+node_modules/
+dist/
+build/
+.vite/
+.cache/
+.eslintcache
+
+# ----------------------------
+# Docker
+# ----------------------------
+*.pid
+docker-data/
+data/
+.pgdata/
+postgres_data/
+pgadmin_data/
+
+# Docker override files (si los usas para local)
+docker-compose.override.yml
+
+# ----------------------------
+# Archives
+# ----------------------------
+*.zip
+*.tar
+*.tar.gz
+*.7z
+AGENTS.md
