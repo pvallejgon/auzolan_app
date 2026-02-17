@@ -1,7 +1,14 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Form } from 'react-bootstrap'
 import { useParams } from 'react-router-dom'
 import api from '../api/http.js'
+
+function formatHourMinute(dateString) {
+  if (!dateString) return '--:--'
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '--:--'
+  return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+}
 
 export default function ChatPage() {
   const { id } = useParams()
@@ -60,7 +67,9 @@ export default function ChatPage() {
         <div className="mb-3" style={{ maxHeight: 300, overflowY: 'auto' }}>
           {messages.map((msg) => (
             <div key={msg.id} className="mb-2">
-              <div className="small muted">Usuario #{msg.sender_user_id}</div>
+              <div className="small muted">
+                {msg.sender_display_name || `Usuario #${msg.sender_user_id}`} ({formatHourMinute(msg.created_at)})
+              </div>
               <div>{msg.body}</div>
             </div>
           ))}

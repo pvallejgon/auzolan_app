@@ -91,3 +91,4 @@ docker-compose.override.yml
 *.tar.gz
 *.7z
 AGENTS.md
+informe.*

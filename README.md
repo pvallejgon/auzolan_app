@@ -163,7 +163,7 @@ python backend/manage.py migrate
 
 ### 6) Cargar datos demo
 ```bash
-python backend/manage.py seed_demo
+
 ```
 AuzolanApp\backend\apps\core\management\commands\seed_demo.py
 

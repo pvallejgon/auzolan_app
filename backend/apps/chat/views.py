@@ -45,7 +45,11 @@ class MessageListCreateView(APIView):
         conversation = get_object_or_404(Conversation, id=conversation_id)
         if not is_participant(request.user, conversation.request):
             return Response({'detail': 'Acceso denegado.'}, status=status.HTTP_403_FORBIDDEN)
-        messages = Message.objects.filter(conversation=conversation).order_by('-created_at')
+        messages = (
+            Message.objects.filter(conversation=conversation)
+            .select_related('sender_user', 'sender_user__profile')
+            .order_by('-created_at')
+        )
         paginator = StandardResultsPagination()
         page = paginator.paginate_queryset(messages, request)
         serializer = MessageSerializer(page, many=True)
