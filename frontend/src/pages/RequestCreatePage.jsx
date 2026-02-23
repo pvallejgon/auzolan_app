@@ -1,14 +1,15 @@
 ﻿import { useState } from 'react'
 import { Alert, Button, Card, Form } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
+
 import api from '../api/http.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { CATEGORIES } from '../data/categories.js'
 
 export default function RequestCreatePage() {
-  const { user } = useAuth()
+  const { currentCommunity } = useAuth()
   const navigate = useNavigate()
-  const communityId = user?.communities?.[0]?.community_id
+  const communityId = currentCommunity?.community_id
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -25,6 +26,12 @@ export default function RequestCreatePage() {
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError('')
+
+    if (!communityId) {
+      setError('Selecciona una comunidad para publicar la petición.')
+      return
+    }
+
     try {
       const payload = {
         community_id: communityId,
@@ -45,6 +52,7 @@ export default function RequestCreatePage() {
     <Card className="card-shadow">
       <Card.Body>
         <Card.Title className="page-title">Nueva petición</Card.Title>
+        <div className="muted mb-3">Comunidad: {currentCommunity?.community_name || 'Sin seleccionar'}</div>
         {error && <Alert variant="danger">{error}</Alert>}
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">

@@ -1,10 +1,11 @@
 ﻿import { useEffect, useState } from 'react'
 import { Alert, Button, Form } from 'react-bootstrap'
 import { useNavigate, useParams, Link } from 'react-router-dom'
+
 import api from '../api/http.js'
+import { useAuth } from '../auth/AuthContext.jsx'
 import OfferList from '../components/OfferList.jsx'
 import ReportModal from '../components/ReportModal.jsx'
-import { useAuth } from '../auth/AuthContext.jsx'
 import { CATEGORY_ICONS, INFO_ICONS } from '../data/icons.js'
 
 const statusMap = {
@@ -53,7 +54,8 @@ export default function RequestDetailPage() {
         accepted_offer_id: res.data.accepted_offer_id,
         can_offer: res.data.can_offer,
         can_accept: res.data.can_accept,
-        can_close: res.data.can_close
+        can_close: res.data.can_close,
+        can_moderate: res.data.can_moderate
       })
     } catch {
       setError('No se pudo cargar la petición.')
@@ -83,12 +85,18 @@ export default function RequestDetailPage() {
     fetchRequest()
   }, [id])
 
+  const isCreator = request?.created_by_user_id === user?.id
+  const canModerate = Boolean(request?.can_moderate)
+  const canSeeOffers = Boolean(request && user && (isCreator || canModerate))
+
   useEffect(() => {
-    if (request && user && request.created_by_user_id === user.id) {
+    if (canSeeOffers) {
       fetchOffers()
     }
-    checkChat()
-  }, [request, user])
+    if (request) {
+      checkChat()
+    }
+  }, [request, canSeeOffers])
 
   const handleOfferSubmit = async (event) => {
     event.preventDefault()
@@ -121,6 +129,28 @@ export default function RequestDetailPage() {
     }
   }
 
+  const handleModerationClose = async (statusValue = 'cancelled') => {
+    try {
+      await api.post(`/moderation/requests/${id}/close`, { status: statusValue })
+      await fetchRequest()
+      await fetchOffers()
+    } catch {
+      setError('No se pudo cerrar la petición por moderación.')
+    }
+  }
+
+  const handleModerationDelete = async () => {
+    const confirmed = window.confirm('¿Seguro que quieres eliminar esta petición por moderación?')
+    if (!confirmed) return
+
+    try {
+      await api.delete(`/moderation/requests/${id}`)
+      navigate('/requests')
+    } catch {
+      setError('No se pudo eliminar la petición por moderación.')
+    }
+  }
+
   const handleReport = async (payload) => {
     try {
       await api.post(`/requests/${id}/reports`, payload)
@@ -135,7 +165,6 @@ export default function RequestDetailPage() {
   }
 
   const status = statusMap[request.status] || statusMap.open
-  const isCreator = request.created_by_user_id === user?.id
   const canOffer = request.can_offer ?? (request.status === 'open' && !isCreator)
   const author = isCreator ? 'Tú' : request.created_by_display_name || `Usuario #${request.created_by_user_id}`
   const categoryIcon = CATEGORY_ICONS[request.category] || 'fi-rr-tags'
@@ -158,6 +187,7 @@ export default function RequestDetailPage() {
             <i className={`fi ${categoryIcon}`} />
             {request.category}
           </span>
+          {canModerate && <span className="chip chip-amber">Modo moderación</span>}
         </div>
 
         <h3 className="page-title mb-2">{request.title}</h3>
@@ -200,6 +230,18 @@ export default function RequestDetailPage() {
               </Button>
             </>
           )}
+          {canModerate && (
+            <>
+              {['open', 'in_progress'].includes(request.status) && (
+                <Button variant="outline-warning" onClick={() => handleModerationClose('cancelled')}>
+                  Cerrar por moderación
+                </Button>
+              )}
+              <Button variant="outline-danger" onClick={handleModerationDelete}>
+                Eliminar por moderación
+              </Button>
+            </>
+          )}
           <Button variant="outline-secondary" onClick={() => setReportOpen(true)}>
             Reportar
           </Button>
@@ -223,7 +265,13 @@ export default function RequestDetailPage() {
         </div>
       )}
 
-      {isCreator && <OfferList offers={offers} onAccept={handleAccept} />}
+      {canSeeOffers && (
+        <OfferList
+          offers={offers}
+          onAccept={handleAccept}
+          canAccept={Boolean(request.can_accept)}
+        />
+      )}
 
       <ReportModal show={reportOpen} onHide={() => setReportOpen(false)} onSubmit={handleReport} />
     </div>

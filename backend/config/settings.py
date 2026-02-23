@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'apps.requests',
     'apps.chat',
     'apps.reports',
+    'apps.loans',
 ]
 
 MIDDLEWARE = [

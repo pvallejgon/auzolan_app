@@ -27,7 +27,7 @@ export default function HomePage() {
     <div className="home-page">
       <Container className="home-hero">
         <div className="home-pill">
-          <i className={`fi ${UI_ICONS.heart}`} /> Ayuda vecinal altruista
+          <i className={`fi ${UI_ICONS.logo}`} /> Ayuda vecinal altruista
         </div>
         <h1 className="home-title">
           Vecinos que se ayudan,
@@ -96,7 +96,7 @@ export default function HomePage() {
 
       <section className="home-cta">
         <Container>
-          <h3>Únete a la Comunidad Demo</h3>
+          <h3>Únete a tu comunidad</h3>
           <p>Empieza a ayudar y recibir ayuda de tus vecinos hoy mismo. Es gratis, seguro y sin compromisos.</p>
           <Button as={Link} to="/register" variant="success">
             Crear mi cuenta gratis
@@ -108,7 +108,7 @@ export default function HomePage() {
         <Container className="d-flex justify-content-between align-items-center">
           <div className="d-flex align-items-center gap-2">
             <span className="brand-mark" style={{ width: 28, height: 28 }}>
-              <i className={`fi ${UI_ICONS.heart}`} />
+              <i className={`fi ${UI_ICONS.logo}`} />
             </span>
             <span className="fw-semibold">AuzolanApp</span>
           </div>

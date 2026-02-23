@@ -7,7 +7,7 @@ const statusLabels = {
   withdrawn: 'Retirada'
 }
 
-export default function OfferList({ offers, onAccept }) {
+export default function OfferList({ offers, onAccept, canAccept = false }) {
   return (
     <div className="section-card card-shadow">
       <div className="section-title">Ofertas de ayuda ({offers.length})</div>
@@ -26,7 +26,7 @@ export default function OfferList({ offers, onAccept }) {
             </div>
             <div className="muted">{offer.message || 'Sin mensaje'}</div>
           </div>
-          {offer.status === 'offered' && (
+          {canAccept && offer.status === 'offered' && (
             <Button variant="primary" size="sm" onClick={() => onAccept(offer.id)}>
               Aceptar
             </Button>

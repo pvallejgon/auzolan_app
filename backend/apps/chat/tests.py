@@ -11,7 +11,7 @@ User = get_user_model()
 class ChatPermissionsTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.community = Community.objects.create(name='Comunidad Demo')
+        self.community = Community.objects.create(name='Obanos')
         self.creator = User.objects.create_user(username='creator3@example.com', email='creator3@example.com', password='Pass1234!')
         self.volunteer = User.objects.create_user(username='vol3@example.com', email='vol3@example.com', password='Pass1234!')
         self.other = User.objects.create_user(username='other3@example.com', email='other3@example.com', password='Pass1234!')

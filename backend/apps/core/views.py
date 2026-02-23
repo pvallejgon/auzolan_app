@@ -1,11 +1,13 @@
 ﻿from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+
+from apps.communities.models import Community, Membership
 from apps.core.serializers import RegisterSerializer, CustomTokenObtainPairSerializer
-from apps.communities.models import Membership
 
 User = get_user_model()
 
@@ -15,7 +17,7 @@ class RegisterView(APIView):
 
     @extend_schema(
         summary='Registro de usuario',
-        description='Crea un usuario, su perfil y la membresía aprobada en la Comunidad Demo.',
+        description='Crea un usuario, su perfil y la membresía aprobada en la comunidad seleccionada.',
         request=RegisterSerializer,
         responses={
             201: OpenApiResponse(
@@ -70,18 +72,43 @@ class MeView(APIView):
         description='Devuelve los datos básicos del usuario autenticado y sus membresías.',
     )
     def get(self, request):
-        memberships = Membership.objects.filter(user=request.user).select_related('community')
-        data = {
-            'id': request.user.id,
-            'email': request.user.email,
-            'display_name': request.user.profile.display_name if hasattr(request.user, 'profile') else '',
-            'communities': [
+        if request.user.is_superuser:
+            communities = Community.objects.all().order_by('id')
+            memberships_payload = [
+                {
+                    'community_id': c.id,
+                    'community_name': c.name,
+                    'status': Membership.Status.APPROVED,
+                    'role_in_community': 'superadmin',
+                }
+                for c in communities
+            ]
+        else:
+            memberships = (
+                Membership.objects.filter(user=request.user)
+                .select_related('community')
+                .order_by('community_id')
+            )
+            memberships_payload = [
                 {
                     'community_id': m.community_id,
+                    'community_name': m.community.name,
                     'status': m.status,
                     'role_in_community': m.role_in_community,
                 }
                 for m in memberships
-            ],
+            ]
+
+        try:
+            display_name = request.user.profile.display_name
+        except ObjectDoesNotExist:
+            display_name = ''
+
+        data = {
+            'id': request.user.id,
+            'email': request.user.email,
+            'display_name': display_name,
+            'is_superadmin': bool(request.user.is_superuser),
+            'communities': memberships_payload,
         }
         return Response(data)

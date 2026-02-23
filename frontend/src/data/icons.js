@@ -15,6 +15,7 @@ export const INFO_ICONS = {
 }
 
 export const UI_ICONS = {
+  logo: 'fi-rr-heart',
   heart: 'fi-rr-heart',
   mail: 'fi-rr-envelope',
   lock: 'fi-rr-lock',

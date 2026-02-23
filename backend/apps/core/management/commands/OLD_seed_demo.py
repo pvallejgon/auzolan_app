@@ -18,11 +18,11 @@ class Command(BaseCommand):
         now = timezone.now()
 
         community, _ = Community.objects.get_or_create(
-            name='Comunidad Demo',
-            defaults={'description': 'Comunidad por defecto para el MVP.'},
+            name='Obanos',
+            defaults={'description': 'Comunidad local de Obanos para el MVP.'},
         )
 
-        # Limpia datos previos en la comunidad demo
+        # Limpia datos previos en la comunidad
         Message.objects.filter(conversation__request__community=community).delete()
         Conversation.objects.filter(request__community=community).delete()
         VolunteerOffer.objects.filter(request__community=community).delete()

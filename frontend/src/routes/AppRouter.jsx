@@ -7,6 +7,10 @@ import RequestDetailPage from '../pages/RequestDetailPage.jsx'
 import ChatPage from '../pages/ChatPage.jsx'
 import ProfilePage from '../pages/ProfilePage.jsx'
 import HomePage from '../pages/HomePage.jsx'
+import CommunityMembersPage from '../pages/CommunityMembersPage.jsx'
+import LoansListPage from '../pages/LoansListPage.jsx'
+import LoanDetailPage from '../pages/LoanDetailPage.jsx'
+import ReportsPage from '../pages/ReportsPage.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { Spinner } from 'react-bootstrap'
 
@@ -87,10 +91,42 @@ export default function AppRouter() {
         }
       />
       <Route
+        path="/loans"
+        element={
+          <ProtectedRoute>
+            <LoansListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/loans/:id"
+        element={
+          <ProtectedRoute>
+            <LoanDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/profile"
         element={
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/community/members"
+        element={
+          <ProtectedRoute>
+            <CommunityMembersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <ReportsPage />
           </ProtectedRoute>
         }
       />

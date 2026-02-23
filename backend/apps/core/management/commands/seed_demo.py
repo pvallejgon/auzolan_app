@@ -7,27 +7,52 @@ from apps.profiles.models import Profile
 from apps.requests.models import Request, VolunteerOffer
 from apps.chat.models import Conversation, Message
 from apps.reports.models import Report
+from apps.loans.models import LoanItem, LoanRequest
 
 User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Carga datos de demo para el MVP.'
+    help = 'Carga datos de demo para el MVP con dos comunidades.'
 
     def handle(self, *args, **options):
         now = timezone.now()
 
-        community, _ = Community.objects.get_or_create(
-            name='Comunidad Demo',
-            defaults={'description': 'Comunidad por defecto para el MVP.'},
+        obanos, _ = Community.objects.get_or_create(
+            name='Obanos',
+            defaults={'description': 'Comunidad local de Obanos para el MVP.'},
         )
+        com_vecinos, _ = Community.objects.get_or_create(
+            name='Com. Vecinos',
+            defaults={'description': 'Comunidad de vecinos para pruebas del MVP.'},
+        )
+        communities_by_name = {
+            'Obanos': obanos,
+            'Com. Vecinos': com_vecinos,
+        }
 
-        # Limpia datos previos en la comunidad demo
-        Message.objects.filter(conversation__request__community=community).delete()
-        Conversation.objects.filter(request__community=community).delete()
-        VolunteerOffer.objects.filter(request__community=community).delete()
-        Report.objects.filter(request__community=community).delete()
-        Request.objects.filter(community=community).delete()
+        # Elimina comunidades no objetivo para evitar restos de seeds antiguos
+        extra_communities = Community.objects.exclude(id__in=[obanos.id, com_vecinos.id])
+        for extra_community in extra_communities:
+            LoanRequest.objects.filter(item__community=extra_community).delete()
+            LoanItem.objects.filter(community=extra_community).delete()
+            Message.objects.filter(conversation__request__community=extra_community).delete()
+            Conversation.objects.filter(request__community=extra_community).delete()
+            VolunteerOffer.objects.filter(request__community=extra_community).delete()
+            Report.objects.filter(request__community=extra_community).delete()
+            Request.objects.filter(community=extra_community).delete()
+            Membership.objects.filter(community=extra_community).delete()
+            extra_community.delete()
+
+        # Limpia datos previos en ambas comunidades demo
+        for community in communities_by_name.values():
+            LoanRequest.objects.filter(item__community=community).delete()
+            LoanItem.objects.filter(community=community).delete()
+            Message.objects.filter(conversation__request__community=community).delete()
+            Conversation.objects.filter(request__community=community).delete()
+            VolunteerOffer.objects.filter(request__community=community).delete()
+            Report.objects.filter(request__community=community).delete()
+            Request.objects.filter(community=community).delete()
 
         demo_users = [
             ('maria.garcia@example.com', 'María García'),
@@ -51,16 +76,72 @@ class Command(BaseCommand):
                 user.set_password('Demo1234!')
                 user.save()
             Profile.objects.update_or_create(user=user, defaults={'display_name': display_name})
+            users[display_name] = user
+
+        # Limpieza de memberships legacy para evitar comunidades fantasma en demo users
+        demo_user_ids = [u.id for u in users.values()]
+        Membership.objects.filter(user_id__in=demo_user_ids).exclude(
+            community_id__in=[obanos.id, com_vecinos.id]
+        ).delete()
+
+        # Memberships: todos en Obanos, y un subconjunto en Com. Vecinos
+        for display_name, user in users.items():
+            role_obanos = Membership.Role.MODERATOR if display_name == 'Carlos Navarro' else Membership.Role.MEMBER
             Membership.objects.update_or_create(
                 user=user,
-                community=community,
+                community=obanos,
                 defaults={
                     'status': Membership.Status.APPROVED,
-                    'role_in_community': Membership.Role.MEMBER,
+                    'role_in_community': role_obanos,
                     'joined_at': now - timedelta(days=800),
                 },
             )
-            users[display_name] = user
+
+        com_vecinos_members = {
+            'Ana Martínez': Membership.Role.MEMBER,
+            'Carmen Ruiz': Membership.Role.MEMBER,
+            'Luis Moreno': Membership.Role.MEMBER,
+            'Laura Gómez': Membership.Role.MODERATOR,
+            'Nuria Fernández': Membership.Role.MEMBER,
+            'Diego Pérez': Membership.Role.MEMBER,
+            'Miguel Santos': Membership.Role.MEMBER,
+        }
+        com_vecinos_member_ids = [users[name].id for name in com_vecinos_members.keys()]
+        Membership.objects.filter(
+            user_id__in=demo_user_ids,
+            community=com_vecinos,
+        ).exclude(user_id__in=com_vecinos_member_ids).delete()
+
+        for display_name, role in com_vecinos_members.items():
+            Membership.objects.update_or_create(
+                user=users[display_name],
+                community=com_vecinos,
+                defaults={
+                    'status': Membership.Status.APPROVED,
+                    'role_in_community': role,
+                    'joined_at': now - timedelta(days=600),
+                },
+            )
+
+        # Superadmin demo global
+        admin_user, _ = User.objects.get_or_create(
+            username='admin@example.com',
+            defaults={
+                'email': 'admin@example.com',
+                'is_staff': True,
+                'is_superuser': True,
+            },
+        )
+        admin_user.set_password('AdminDemo1234!')
+        if not admin_user.is_staff or not admin_user.is_superuser:
+            admin_user.is_staff = True
+            admin_user.is_superuser = True
+        admin_user.email = 'admin@example.com'
+        admin_user.save()
+        Profile.objects.update_or_create(
+            user=admin_user,
+            defaults={'display_name': 'Superadmin Demo'},
+        )
 
         def set_dates(instance, created_at, updated_at=None, closed_at=None):
             if updated_at is None:
@@ -73,6 +154,7 @@ class Command(BaseCommand):
 
         def create_request(data):
             creator = users[data['creator']]
+            community = communities_by_name[data.get('community', 'Obanos')]
             req = Request.objects.create(
                 community=community,
                 created_by_user=creator,
@@ -662,8 +744,155 @@ class Command(BaseCommand):
             },
         ]
 
+        requests_data_com_vecinos = [
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Traslado al centro de día',
+                'description': 'Necesito apoyo para llevar a un familiar al centro de día y volver.',
+                'category': 'Transporte',
+                'time_window_text': 'Mañana 9:00',
+                'location_area_text': 'Com. Vecinos - zona principal',
+                'status': Request.Status.OPEN,
+                'creator': 'Carmen Ruiz',
+                'created_days_ago': 2,
+                'offers': [
+                    {'volunteer': 'Luis Moreno', 'message': 'Puedo llevaros en coche.'},
+                    {'volunteer': 'Diego Pérez', 'message': 'Si hace falta, me encargo yo.'},
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Configurar teléfono para videollamadas',
+                'description': 'Necesito ayuda para dejar un móvil preparado para videollamadas familiares.',
+                'category': 'Tecnología',
+                'time_window_text': 'Esta tarde',
+                'location_area_text': 'Com. Vecinos - bloque B',
+                'status': Request.Status.OPEN,
+                'creator': 'Laura Gómez',
+                'created_days_ago': 4,
+                'offers': [
+                    {'volunteer': 'Nuria Fernández', 'message': 'Te ayudo con toda la configuración.'},
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Acompañamiento a revisión médica',
+                'description': 'Tengo una revisión y me gustaría ir acompañada para mayor tranquilidad.',
+                'category': 'Acompañamiento',
+                'time_window_text': 'Viernes 11:30',
+                'location_area_text': 'Centro de salud de barrio',
+                'status': Request.Status.IN_PROGRESS,
+                'creator': 'Ana Martínez',
+                'created_days_ago': 6,
+                'offers': [
+                    {'volunteer': 'Laura Gómez', 'message': 'Te acompaño sin problema.'},
+                    {'volunteer': 'Miguel Santos', 'message': 'Si hace falta, también puedo ir.'},
+                ],
+                'accepted_offer_index': 0,
+                'messages': [
+                    {'sender': 'Ana Martínez', 'body': 'Gracias, quedamos media hora antes.', 'days_after': 1},
+                    {'sender': 'Laura Gómez', 'body': 'Perfecto, allí estaré.', 'days_after': 1},
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Subir cajas al altillo',
+                'description': 'Necesito ayuda para subir unas cajas ligeras al altillo del trastero.',
+                'category': 'Hogar',
+                'time_window_text': 'Sábado por la mañana',
+                'location_area_text': 'Com. Vecinos - trasteros',
+                'status': Request.Status.IN_PROGRESS,
+                'creator': 'Miguel Santos',
+                'created_days_ago': 8,
+                'offers': [
+                    {'volunteer': 'Diego Pérez', 'message': 'Puedo ayudarte con eso.'},
+                    {'volunteer': 'Luis Moreno', 'message': 'Cuenta conmigo si hace falta.'},
+                ],
+                'accepted_offer_index': 1,
+                'messages': [
+                    {'sender': 'Miguel Santos', 'body': 'Luis, ¿te viene bien el sábado?', 'days_after': 1},
+                    {'sender': 'Luis Moreno', 'body': 'Sí, a primera hora perfecto.', 'days_after': 2},
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Compra semanal completada',
+                'description': 'La ayuda para la compra semanal ya se completó correctamente.',
+                'category': 'Recados',
+                'time_window_text': 'Entre semana',
+                'location_area_text': 'Com. Vecinos - zona comercial',
+                'status': Request.Status.RESOLVED,
+                'creator': 'Luis Moreno',
+                'created_days_ago': 70,
+                'closed_days_ago': 61,
+                'offers': [
+                    {'volunteer': 'Carmen Ruiz', 'message': 'Puedo acompañarte al supermercado.'},
+                    {'volunteer': 'Ana Martínez', 'message': 'También puedo ayudar con bolsas.'},
+                ],
+                'accepted_offer_index': 0,
+                'messages': [
+                    {'sender': 'Luis Moreno', 'body': 'Gracias por la ayuda con la compra.', 'days_after': 1},
+                    {'sender': 'Carmen Ruiz', 'body': 'Encantada, cuando quieras repetimos.', 'days_after': 2},
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Revisión de portátil finalizada',
+                'description': 'La revisión del portátil ya quedó completada y funcionando correctamente.',
+                'category': 'Tecnología',
+                'time_window_text': 'Tardes',
+                'location_area_text': 'Com. Vecinos - bloque C',
+                'status': Request.Status.RESOLVED,
+                'creator': 'Nuria Fernández',
+                'created_days_ago': 95,
+                'closed_days_ago': 86,
+                'offers': [
+                    {'volunteer': 'Miguel Santos', 'message': 'Puedo revisarlo y optimizarlo.'},
+                ],
+                'accepted_offer_index': 0,
+                'messages': [
+                    {'sender': 'Nuria Fernández', 'body': 'Ya va mucho mejor, gracias.', 'days_after': 2},
+                    {'sender': 'Miguel Santos', 'body': 'Genial, me alegro.', 'days_after': 3},
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Paseo cancelado por lluvia',
+                'description': 'La salida prevista se canceló por mal tiempo y se reprogramará más adelante.',
+                'category': 'Acompañamiento',
+                'time_window_text': 'Tarde',
+                'location_area_text': 'Com. Vecinos - plaza interior',
+                'status': Request.Status.CANCELLED,
+                'creator': 'Carmen Ruiz',
+                'created_days_ago': 19,
+                'closed_days_ago': 16,
+                'offers': [
+                    {'volunteer': 'Ana Martínez', 'message': 'Si mejora el tiempo, me apunto.'},
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Traslado cancelado por cambio de cita',
+                'description': 'El traslado ya no es necesario porque cambiaron la fecha de la cita.',
+                'category': 'Transporte',
+                'time_window_text': 'Mañana',
+                'location_area_text': 'Com. Vecinos - acceso principal',
+                'status': Request.Status.CANCELLED,
+                'creator': 'Laura Gómez',
+                'created_days_ago': 24,
+                'closed_days_ago': 19,
+                'offers': [
+                    {'volunteer': 'Diego Pérez', 'message': 'Puedo llevarte si lo retomas.'},
+                    {'volunteer': 'Luis Moreno', 'message': 'También estoy disponible.'},
+                ],
+            },
+        ]
+
         created_requests = []
         for data in requests_data:
+            created_requests.append(create_request(data))
+        com_vecinos_start_index = len(created_requests)
+        for data in requests_data_com_vecinos:
             created_requests.append(create_request(data))
 
         reports_data = [
@@ -739,6 +968,30 @@ class Command(BaseCommand):
                 'reason': Report.Reason.ADVERTISING,
                 'description': 'Parece mensaje de captación de servicios.',
             },
+            {
+                'reporter': 'Laura Gómez',
+                'request_index': com_vecinos_start_index + 0,
+                'reason': Report.Reason.OTHER,
+                'description': 'Se solicita revisión de contenido por dudas.',
+            },
+            {
+                'reporter': 'Miguel Santos',
+                'request_index': com_vecinos_start_index + 2,
+                'reason': Report.Reason.HARASSMENT,
+                'description': 'Se detecta tono inadecuado en el intercambio.',
+            },
+            {
+                'reporter': 'Ana Martínez',
+                'request_index': com_vecinos_start_index + 4,
+                'reason': Report.Reason.PAYMENTS,
+                'description': 'Se insinúa compensación económica no permitida.',
+            },
+            {
+                'reporter': 'Nuria Fernández',
+                'request_index': com_vecinos_start_index + 7,
+                'reason': Report.Reason.ADVERTISING,
+                'description': 'Puede haber intención de promoción comercial.',
+            },
         ]
 
         created_reports = []
@@ -755,9 +1008,324 @@ class Command(BaseCommand):
                 )
             )
 
+        def set_loan_item_dates(item, created_at, updated_at=None, loaned_at=None, returned_at=None):
+            if updated_at is None:
+                updated_at = created_at
+            LoanItem.objects.filter(id=item.id).update(
+                created_at=created_at,
+                updated_at=updated_at,
+                loaned_at=loaned_at,
+                returned_at=returned_at,
+            )
+
+        def set_loan_request_dates(loan_request, created_at, updated_at=None, responded_at=None):
+            if updated_at is None:
+                updated_at = responded_at or created_at
+            LoanRequest.objects.filter(id=loan_request.id).update(
+                created_at=created_at,
+                updated_at=updated_at,
+                responded_at=responded_at,
+            )
+
+        def create_loan_item(data):
+            owner = users[data['owner']]
+            community = communities_by_name[data.get('community', 'Obanos')]
+            item = LoanItem.objects.create(
+                community=community,
+                owner_user=owner,
+                title=data['title'],
+                description=data.get('description', ''),
+                status=LoanItem.Status.AVAILABLE,
+            )
+
+            created_at = now - timedelta(days=data.get('created_days_ago', 5))
+            updated_at = created_at
+            item_requests = []
+
+            for req_data in data.get('requests', []):
+                loan_request = LoanRequest.objects.create(
+                    item=item,
+                    requester_user=users[req_data['requester']],
+                    message=req_data.get('message', ''),
+                    status=req_data.get('status', LoanRequest.Status.PENDING),
+                )
+                req_created_days = req_data.get('created_days_ago', max(data.get('created_days_ago', 5) - 1, 0))
+                req_created_at = now - timedelta(days=req_created_days)
+                responded_at = None
+                if loan_request.status != LoanRequest.Status.PENDING:
+                    default_responded_days = max(req_created_days - 1, 0)
+                    responded_days = req_data.get('responded_days_ago', default_responded_days)
+                    responded_at = now - timedelta(days=responded_days)
+                req_updated_at = responded_at or req_created_at
+                set_loan_request_dates(loan_request, req_created_at, req_updated_at, responded_at)
+                item_requests.append(loan_request)
+                if req_updated_at > updated_at:
+                    updated_at = req_updated_at
+
+            if data.get('status') == LoanItem.Status.LOANED:
+                borrower = users[data['borrower']]
+                loaned_at = now - timedelta(days=data.get('loaned_days_ago', 1))
+                item.status = LoanItem.Status.LOANED
+                item.borrower_user = borrower
+                item.loaned_at = loaned_at
+                item.returned_at = None
+                item.save(update_fields=['status', 'borrower_user', 'loaned_at', 'returned_at', 'updated_at'])
+
+                accepted_request = None
+                for loan_request in item_requests:
+                    if loan_request.requester_user_id == borrower.id:
+                        accepted_request = loan_request
+                        break
+
+                if accepted_request is None:
+                    accepted_request = LoanRequest.objects.create(
+                        item=item,
+                        requester_user=borrower,
+                        message='Solicitud aceptada en demo.',
+                        status=LoanRequest.Status.ACCEPTED,
+                    )
+                    set_loan_request_dates(
+                        accepted_request,
+                        loaned_at - timedelta(hours=3),
+                        loaned_at,
+                        loaned_at,
+                    )
+                    item_requests.append(accepted_request)
+
+                LoanRequest.objects.filter(id=accepted_request.id).update(
+                    status=LoanRequest.Status.ACCEPTED,
+                    responded_at=loaned_at,
+                    updated_at=loaned_at,
+                )
+                LoanRequest.objects.filter(item=item, status=LoanRequest.Status.PENDING).exclude(id=accepted_request.id).update(
+                    status=LoanRequest.Status.REJECTED,
+                    responded_at=loaned_at,
+                    updated_at=loaned_at,
+                )
+                if loaned_at > updated_at:
+                    updated_at = loaned_at
+                set_loan_item_dates(item, created_at, updated_at=updated_at, loaned_at=loaned_at, returned_at=None)
+            else:
+                set_loan_item_dates(item, created_at, updated_at=updated_at)
+
+            return item
+
+        loan_items_data = [
+            {
+                'community': 'Obanos',
+                'title': 'Taladro percutor',
+                'description': 'Taladro con juego de brocas para pared y madera.',
+                'owner': 'Carlos Navarro',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 2,
+                'requests': [
+                    {
+                        'requester': 'Juan López',
+                        'message': 'Lo necesitaría para colgar unas baldas esta tarde.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 1,
+                    },
+                ],
+            },
+            {
+                'community': 'Obanos',
+                'title': 'Escalera plegable',
+                'description': 'Escalera de aluminio de 4 peldaños.',
+                'owner': 'Pedro Sánchez',
+                'status': LoanItem.Status.LOANED,
+                'borrower': 'María García',
+                'created_days_ago': 6,
+                'loaned_days_ago': 1,
+                'requests': [
+                    {
+                        'requester': 'María García',
+                        'message': 'La necesito para cambiar una lámpara.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 2,
+                    },
+                    {
+                        'requester': 'Inés Rodríguez',
+                        'message': 'Si no se usa esta semana, me vendría bien.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 2,
+                    },
+                ],
+            },
+            {
+                'community': 'Obanos',
+                'title': 'Silla de ruedas plegable',
+                'description': 'Para traslados puntuales dentro del barrio.',
+                'owner': 'Carmen Ruiz',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 3,
+                'requests': [
+                    {
+                        'requester': 'Ana Martínez',
+                        'message': 'La necesitaría para una cita médica.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 1,
+                    },
+                ],
+            },
+            {
+                'community': 'Obanos',
+                'title': 'Juego de llaves Allen',
+                'description': 'Set completo para ajustes de muebles y bicicletas.',
+                'owner': 'Miguel Santos',
+                'status': LoanItem.Status.LOANED,
+                'borrower': 'Juan López',
+                'created_days_ago': 8,
+                'loaned_days_ago': 2,
+                'requests': [
+                    {
+                        'requester': 'Juan López',
+                        'message': 'Tengo que apretar una silla y una mesa.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 3,
+                    },
+                ],
+            },
+            {
+                'community': 'Obanos',
+                'title': 'Carretilla pequeña',
+                'description': 'Ideal para mover cajas del portal al trastero.',
+                'owner': 'Inés Rodríguez',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 1,
+            },
+            {
+                'community': 'Obanos',
+                'title': 'Kit de destornilladores',
+                'description': 'Plano, estrella y precisión.',
+                'owner': 'Laura Gómez',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 4,
+                'requests': [
+                    {
+                        'requester': 'Pedro Sánchez',
+                        'message': 'Me vendrían bien para un ajuste rápido en casa.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 2,
+                    },
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Aspiradora de mano',
+                'description': 'Para limpiezas rápidas en coche o sofá.',
+                'owner': 'Laura Gómez',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 2,
+                'requests': [
+                    {
+                        'requester': 'Diego Pérez',
+                        'message': 'La usaría para limpiar el coche este finde.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 1,
+                    },
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Taladro inalámbrico',
+                'description': 'Incluye batería extra y cargador.',
+                'owner': 'Luis Moreno',
+                'status': LoanItem.Status.LOANED,
+                'borrower': 'Ana Martínez',
+                'created_days_ago': 5,
+                'loaned_days_ago': 1,
+                'requests': [
+                    {
+                        'requester': 'Ana Martínez',
+                        'message': 'Lo necesito para fijar una estantería.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 2,
+                    },
+                    {
+                        'requester': 'Carmen Ruiz',
+                        'message': 'Si queda libre la semana que viene, avísame.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 2,
+                    },
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Sillas plegables (x2)',
+                'description': 'Dos sillas para visita puntual o evento de comunidad.',
+                'owner': 'Carmen Ruiz',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 3,
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Cargador universal portátil',
+                'description': 'Compatible con varios móviles y tablets.',
+                'owner': 'Nuria Fernández',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 1,
+                'requests': [
+                    {
+                        'requester': 'Miguel Santos',
+                        'message': 'Lo necesito para una salida larga mañana.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 1,
+                    },
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Mini escalera de hogar',
+                'description': 'Escalera compacta para tareas ligeras.',
+                'owner': 'Diego Pérez',
+                'status': LoanItem.Status.LOANED,
+                'borrower': 'Carmen Ruiz',
+                'created_days_ago': 7,
+                'loaned_days_ago': 2,
+                'requests': [
+                    {
+                        'requester': 'Carmen Ruiz',
+                        'message': 'La usaré para organizar armarios.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 3,
+                    },
+                ],
+            },
+            {
+                'community': 'Com. Vecinos',
+                'title': 'Carro de compra plegable',
+                'description': 'Muy útil para compras con bolsas pesadas.',
+                'owner': 'Ana Martínez',
+                'status': LoanItem.Status.AVAILABLE,
+                'created_days_ago': 2,
+                'requests': [
+                    {
+                        'requester': 'Luis Moreno',
+                        'message': 'Me vendría bien para la compra del viernes.',
+                        'status': LoanRequest.Status.PENDING,
+                        'created_days_ago': 1,
+                    },
+                ],
+            },
+        ]
+
+        created_loan_items = [create_loan_item(data) for data in loan_items_data]
+
         self.stdout.write(self.style.SUCCESS('Datos demo ampliados cargados.'))
         self.stdout.write(
             f'Usuarios: {len(demo_users)} | '
             f'Peticiones: {len(created_requests)} | '
-            f'Reportes: {len(created_reports)}'
+            f'Reportes: {len(created_reports)} | '
+            f'Items préstamo: {len(created_loan_items)}'
+        )
+        self.stdout.write(
+            f'Obanos: {Request.objects.filter(community=obanos).count()} peticiones | '
+            f'Com. Vecinos: {Request.objects.filter(community=com_vecinos).count()} peticiones'
+        )
+        self.stdout.write(
+            f'Préstamos -> Obanos: {LoanItem.objects.filter(community=obanos).count()} items | '
+            f'Com. Vecinos: {LoanItem.objects.filter(community=com_vecinos).count()} items'
+        )
+        self.stdout.write(
+            'Superadmin demo: admin@example.com / AdminDemo1234! (solo entorno demo)'
         )

@@ -1,226 +1,244 @@
 ﻿# AuzolanApp (MVP A)
 
-Plataforma web de ayuda vecinal altruista para comunidades pequeñas.
+Plataforma web de ayuda vecinal altruista para comunidades pequenas.
 
-## Requisitos
+## 1) Que es este proyecto
+AuzolanApp conecta personas para pedir y ofrecer ayuda dentro de su comunidad.
+
+Principios del producto:
+- Sin dinero: no pagos, no propinas, no tarifas.
+- Sin publicidad ni captacion profesional.
+- Todo recurso vive dentro de una comunidad.
+- Privacidad por defecto (zona aproximada, sin direccion publica).
+- Chat solo tras aceptar una oferta de voluntariado.
+
+## 2) Estado actual del desarrollo
+El proyecto ya tiene backend y frontend funcionales para:
+- Registro y login con JWT.
+- Seleccion de comunidad en registro.
+- Listado, creacion y gestion de peticiones.
+- Ofertas de ayuda y aceptacion de voluntario.
+- Chat entre participantes.
+- Reportes y moderacion.
+- Prestamos vecinales (publicar item, solicitar, aceptar/rechazar y marcar devolucion).
+- Gestion de miembros por comunidad para moderador/superadmin.
+- Edicion de perfil propio (sin editar email).
+
+## 3) Stack tecnico
+- Backend: Django + Django REST Framework + SimpleJWT
+- DB: PostgreSQL
+- Frontend: React (Vite) + React Router + React-Bootstrap
+- Documentacion API: drf-spectacular (Swagger)
+
+## 4) Roles y permisos
+### Usuario normal (member)
+- Opera en sus comunidades aprobadas.
+- Puede crear/editar/cerrar sus propias peticiones (segun estado).
+- Puede ofrecer ayuda en peticiones abiertas.
+- Puede reportar contenido.
+- Puede editar su perfil (`display_name`, `bio`) pero no su email.
+
+### Moderador de comunidad (moderator)
+- Todo lo anterior dentro de su comunidad.
+- Puede listar miembros de su comunidad.
+- Puede editar datos de usuarios de su comunidad (`display_name`, `bio`, `status` de membership).
+- Puede moderar peticiones de su comunidad (cerrar/eliminar).
+- Puede ver ofertas de peticiones de su comunidad.
+- Puede listar y gestionar reportes de su comunidad.
+- No puede cambiar el rol de otros usuarios (reservado a superadmin).
+
+### Superadmin global (`is_superuser`)
+- Permisos globales sobre todas las comunidades.
+- Puede gestionar miembros en cualquier comunidad.
+- Puede cambiar rol en comunidad (`member` <-> `moderator`).
+- Puede usar Django admin para operativa global.
+
+## 5) Requisitos
 - Python 3.11+
 - Node.js 18+
-- PostgreSQL
+- PostgreSQL (local o Docker)
+- Docker Desktop (opcional)
 
+## 6) Arranque rapido (Windows + PowerShell)
+
+### 6.1 Backend
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-## Backend (Django + DRF)
-
-### Configuración rápida
-1. Crea y activa un entorno virtual.
-2. Instala dependencias:
-
-```bash
 pip install -r backend/requirements.txt
 ```
 
-3. Variables de entorno (ejemplo):
-
-```bash
-set DJANGO_SECRET_KEY="1234"
-set POSTGRES_DB=auzolanapp
-set POSTGRES_USER=postgres
-set POSTGRES_PASSWORD=postgres
-set POSTGRES_HOST=localhost
-set POSTGRES_PORT=5432
-```
-
-4. Migraciones y servidor:
-
-```bash
-python backend/manage.py migrate
-python backend/manage.py runserver
-```
-
-### PostgreSQL con Docker (opcional)
-1. Copia el archivo de ejemplo:
-
-```bash
-copy .env.example .env
-```
-
-2. Levanta Postgres:
-
-```bash
+### 6.2 Base de datos
+Opcion recomendada (Docker):
+```powershell
+Copy-Item .env.example .env
 docker compose up -d postgres
 ```
 
-3. Exporta las variables (o usa tus valores):
+Si usas Postgres local, crea la BD `auzolanapp` y ajusta variables.
 
-```bash
-set DJANGO_SECRET_KEY=change_me
-set POSTGRES_DB=auzolanapp
-set POSTGRES_USER=postgres
-set POSTGRES_PASSWORD=postgres
-set POSTGRES_HOST=localhost
-set POSTGRES_PORT=5432
+### 6.3 Variables de entorno backend
+```powershell
+$env:DJANGO_SECRET_KEY = "change_me"
+$env:POSTGRES_DB = "auzolanapp"
+$env:POSTGRES_USER = "postgres"
+$env:POSTGRES_PASSWORD = "postgres"
+$env:POSTGRES_HOST = "localhost"
+$env:POSTGRES_PORT = "5432"
 ```
 
-### pgAdmin (UI visual) con Docker
-Si quieres ver la base de datos de forma visual:
-```bash
-docker compose up -d postgres pgadmin
-```
-Luego abre: `http://localhost:5050`
-- Email: `admin@example.com` (o `PGADMIN_DEFAULT_EMAIL`)
-- Password: `admin1234` (o `PGADMIN_DEFAULT_PASSWORD`)
-
-#### Cómo ver la base de datos en pgAdmin
-1. En el panel izquierdo, clic derecho en **Servers** → **Register** → **Server...**
-2. Pestaña **General**:
-   - Name: `AuzolanApp`
-3. Pestaña **Connection**:
-   - Host name/address: `postgres`
-   - Port: `5432`
-   - Maintenance database: `auzolanapp`
-   - Username: `postgres`
-   - Password: `postgres`
-   - Marca **Save password**
-4. Guardar.
-
-Ahora podrás navegar en:
-`Servers > AuzolanApp > Databases > auzolanapp > Schemas > public > Tables`
-
-### Cargar datos demo
-
-```bash
+### 6.4 Migraciones + datos demo
+```powershell
+python backend/manage.py migrate
 python backend/manage.py seed_demo
 ```
 
+### 6.5 Arrancar backend
+```powershell
+python backend/manage.py runserver
+```
+Backend: `http://localhost:8000`
+
+### 6.6 Arrancar frontend (otra terminal)
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+Frontend: `http://localhost:5173`
+
+## 7) Datos demo (`seed_demo`)
+`python backend/manage.py seed_demo` deja un escenario estable para pruebas.
+
 Incluye:
-- Comunidad "Comunidad Demo"
-- 12 usuarios demo (password `Demo1234!`)
-- Peticiones en estados open, in_progress, resolved y cancelled, con ofertas y chat
-- Datos anteriores de la comunidad demo se reemplazan para dejar un escenario realista
+- Comunidades: `Obanos`, `Com. Vecinos`
+- 12 usuarios demo
+- 1 superadmin demo
+- Moderador en cada comunidad
+- Peticiones, ofertas, conversaciones, mensajes y reportes
+- Prestamos con items en `available` y `loaned`, y solicitudes en `pending/accepted/rejected`
 
-## Frontend (React + Vite)
+Importante:
+- Limpia peticiones/ofertas/chat/reportes de las comunidades demo.
+- Elimina comunidades sobrantes que no sean `Obanos` o `Com. Vecinos` para evitar datos legacy.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+### Credenciales demo
+Usuarios demo (password comun): `Demo1234!`
+- `maria.garcia@example.com`
+- `juan.lopez@example.com`
+- `ana.martinez@example.com`
+- `pedro.sanchez@example.com`
+- `carmen.ruiz@example.com`
+- `luis.moreno@example.com`
+- `laura.gomez@example.com`
+- `carlos.navarro@example.com`
+- `nuria.fernandez@example.com`
+- `diego.perez@example.com`
+- `ines.rodriguez@example.com`
+- `miguel.santos@example.com`
 
-Por defecto el frontend usa `http://localhost:8000/api`. Para cambiarlo:
+Superadmin demo:
+- `admin@example.com` / `AdminDemo1234!`
 
-```bash
-set VITE_API_URL=http://localhost:8000/api
-```
+## 8) Flujos de uso recomendados
+1. Usuario normal
+- Login con `juan.lopez@example.com`
+- Crear peticion, ofrecer ayuda y reportar contenido.
+- Publicar un item de prestamo o solicitar uno disponible.
 
-## Arranque desde cero (paso a paso)
-Guía pensada para Windows + PowerShell.
+2. Moderador
+- Login con `carlos.navarro@example.com` (Obanos) o `laura.gomez@example.com` (Com. Vecinos)
+- Ir a `Mi comunidad` para listar/editar miembros.
+- Ir a `Reportes` para revisar reportes de su comunidad y decidir si cierra/elimina peticiones reportadas.
 
-### 0) Prerrequisitos
-- Instala Python 3.11+ y Node.js 18+
-- Instala Docker Desktop **o** PostgreSQL local
+3. Superadmin
+- Login con `admin@example.com`
+- Cambiar comunidad desde navbar y gestionar todo.
+- Ir a `Reportes` para revisar reportes de cualquier comunidad.
+- Acceder a `/admin` para operativa global.
 
-### 1) Clonar/abrir proyecto y preparar venv
-```bash
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
+4. Flujo de prestamos
+- Ir a `/loans`.
+- Publicar item con el mini formulario.
+- Entrar al detalle del item para solicitar prestamo.
+- Quien presta acepta/rechaza solicitudes y marca devolucion.
 
-### 2) Instalar dependencias de backend
-```bash
-pip install -r backend/requirements.txt
-```
+## 9) Rutas frontend principales
+- `/` Home publica
+- `/login`
+- `/register`
+- `/requests`
+- `/requests/mine`
+- `/requests/new`
+- `/requests/:id`
+- `/requests/:id/chat`
+- `/reports` (moderador/superadmin)
+- `/loans`
+- `/loans/:id`
+- `/profile`
+- `/community/members` (moderador/superadmin)
 
-### 3) Levantar PostgreSQL
-Opción A (Docker recomendado):
-```bash
-copy .env.example .env
-docker compose up -d postgres
-```
+## 10) Endpoints API principales
+Prefijo: `/api`
 
-Opción B (PostgreSQL local):
-1. Asegúrate de que el servicio de PostgreSQL está encendido.
-2. Crea la base de datos:
-```bash
-createdb -U postgres auzolanapp
-```
+Auth:
+- `POST /api/auth/register` (requiere `community_id`)
+- `POST /api/auth/token`
+- `POST /api/auth/token/refresh`
+- `GET /api/me`
+- `GET/PATCH /api/profile`
 
-### 4) Variables de entorno (backend)
-```bash
-set DJANGO_SECRET_KEY="cambia_esta_clave"
-set POSTGRES_DB=auzolanapp
-set POSTGRES_USER=postgres
-set POSTGRES_PASSWORD=postgres
-set POSTGRES_HOST=localhost
-set POSTGRES_PORT=5432
-```
+Communities:
+- `GET /api/communities`
+- `POST /api/communities/{community_id}/join`
+- `GET /api/communities/{community_id}/members`
+- `PATCH /api/communities/{community_id}/members/{user_id}`
 
-### 5) Migraciones
-```bash
-python backend/manage.py makemigrations
-python backend/manage.py migrate
-```
+Requests/Offers:
+- `GET/POST /api/requests`
+- `GET/PATCH /api/requests/{request_id}`
+- `POST /api/requests/{request_id}/close`
+- `GET/POST /api/requests/{request_id}/offers`
+- `POST /api/requests/{request_id}/accept-offer/{offer_id}`
+- `POST /api/moderation/requests/{request_id}/close`
+- `DELETE /api/moderation/requests/{request_id}`
 
-### 6) Cargar datos demo
-```bash
+Chat:
+- `GET /api/requests/{request_id}/conversation`
+- `GET/POST /api/conversations/{conversation_id}/messages`
 
-```
-AuzolanApp\backend\apps\core\management\commands\seed_demo.py
+Reports:
+- `POST /api/requests/{request_id}/reports`
+- `GET /api/reports`
+- `POST /api/reports/{report_id}/status`
 
-Usuarios demo (password `Demo1234!`):
-- maria.garcia@example.com
-- juan.lopez@example.com
-- ana.martinez@example.com
-- pedro.sanchez@example.com
-- carmen.ruiz@example.com
-- luis.moreno@example.com
-- laura.gomez@example.com
-- carlos.navarro@example.com
-- nuria.fernandez@example.com
-- diego.perez@example.com
-- ines.rodriguez@example.com
-- miguel.santos@example.com
+Loans:
+- `GET /api/loans`
+- `POST /api/loans`
+- `GET /api/loans/{loan_id}`
+- `PATCH /api/loans/{loan_id}`
+- `GET /api/loans/{loan_id}/requests`
+- `POST /api/loans/{loan_id}/requests`
+- `POST /api/loans/{loan_id}/requests/{loan_request_id}/accept`
+- `POST /api/loans/{loan_id}/requests/{loan_request_id}/reject`
+- `POST /api/loans/{loan_id}/mark-returned`
 
-### 7) Levantar backend
-```bash
-python backend/manage.py runserver
-```
-
-Backend en: `http://localhost:8000`
-
-### 8) Levantar frontend
-En otra terminal:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend en: `http://localhost:5173`
-
-### 9) Probar la app
-1. Entra a `http://localhost:5173`
-2. Inicia sesión con `maria.garcia@example.com / Demo1234!`
-3. Revisa “Peticiones” y “Mis peticiones”
-
-### 10) Si algo falla
-- Comprueba que PostgreSQL está activo.
-- Verifica las variables `POSTGRES_*`.
-- Repite migraciones si cambiaste modelos.
-
-## Notas MVP
-- No pagos ni monetización.
-- Privacidad por defecto, ubicación aproximada.
-- Chat solo tras aceptación de voluntario.
-- Moderación y reportes en Django Admin.
-
-## Swagger / Documentación visual de API
-Se habilitó Swagger con drf-spectacular:
-- Esquema: `http://localhost:8000/api/schema`
+## 11) Documentacion API y admin
+- OpenAPI schema: `http://localhost:8000/api/schema`
 - Swagger UI: `http://localhost:8000/api/docs`
+- Django admin: `http://localhost:8000/admin`
 
-Si no te abre, instala dependencias y reinicia el backend:
-```bash
-pip install -r backend/requirements.txt
-python backend/manage.py runserver
+## 12) Tests
+Con entorno virtual activo:
+```powershell
+python backend/manage.py test
 ```
+
+## 13) Errores comunes
+- `No module named django`
+  - Activa venv e instala `backend/requirements.txt`.
+- Error de conexion a Postgres
+  - Revisa variables `POSTGRES_*`.
+- Frontend sin conectar al backend
+  - Verifica backend en `http://localhost:8000`.
+  - Si hace falta, define `VITE_API_URL`.

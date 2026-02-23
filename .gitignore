@@ -92,3 +92,5 @@ docker-compose.override.yml
 *.7z
 AGENTS.md
 informe.*
+funcionamiento.md
+manual_usuario.md

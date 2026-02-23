@@ -26,7 +26,7 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-header">
         <span className="brand-mark">
-          <i className={`fi ${UI_ICONS.heart}`} />
+          <i className={`fi ${UI_ICONS.logo}`} />
         </span>
         <div className="brand-title">AuzolanApp</div>
         <div className="muted">Ayuda vecinal altruista</div>
@@ -78,8 +78,13 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="auth-demo">
-        <strong>Demo:</strong> maria.garcia@example.com / Demo1234!
+      <div className="auth-demo text-start">
+        <strong>Credenciales demo:</strong>
+        <div>Superadmin: admin@example.com / AdminDemo1234!</div>
+        <div>Moderador (Obanos): carlos.navarro@example.com / Demo1234!</div>
+        <div>Moderadora (Com. Vecinos): laura.gomez@example.com / Demo1234!</div>
+        <div>Usuario (Obanos): juan.lopez@example.com / Demo1234!</div>
+        <div>Usuario (Com. Vecinos): luis.moreno@example.com / Demo1234!</div>
       </div>
     </div>
   )

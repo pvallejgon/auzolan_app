@@ -1,4 +1,6 @@
-﻿from rest_framework import serializers
+﻿from django.core.exceptions import ObjectDoesNotExist
+from rest_framework import serializers
+
 from apps.communities.models import Community
 from apps.requests.models import Request, VolunteerOffer
 
@@ -36,7 +38,12 @@ class RequestSerializer(serializers.ModelSerializer):
         user = getattr(obj, 'created_by_user', None)
         if not user:
             return ''
-        profile = getattr(user, 'profile', None)
+
+        try:
+            profile = user.profile
+        except ObjectDoesNotExist:
+            profile = None
+
         if profile and profile.display_name:
             return profile.display_name
         return user.email or f'Usuario {user.id}'
@@ -76,7 +83,12 @@ class VolunteerOfferSerializer(serializers.ModelSerializer):
         user = getattr(obj, 'volunteer_user', None)
         if not user:
             return ''
-        profile = getattr(user, 'profile', None)
+
+        try:
+            profile = user.profile
+        except ObjectDoesNotExist:
+            profile = None
+
         if profile and profile.display_name:
             return profile.display_name
         return user.email or f'Usuario {user.id}'
