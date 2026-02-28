@@ -107,7 +107,7 @@ npm run dev
 ```
 Frontend: `http://localhost:5173`
 
-## 7) Datos demo (`seed_demo`)
+## 7) Datos demo (`seed_demo`) `backend\apps\core\management\commands\seed_demo.py`
 `python backend/manage.py seed_demo` deja un escenario estable para pruebas.
 
 Incluye:
