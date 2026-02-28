@@ -91,6 +91,6 @@ docker-compose.override.yml
 *.tar.gz
 *.7z
 AGENTS.md
-informe.*
+informe*
 funcionamiento.md
 manual_usuario.md
