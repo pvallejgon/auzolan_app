@@ -1,4 +1,4 @@
-﻿# AuzolanApp (MVP A)
+﻿# AuzolanApp
 
 Plataforma web de ayuda vecinal altruista para comunidades pequenas.
 
